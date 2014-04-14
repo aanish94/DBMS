@@ -9,7 +9,11 @@ import java.io.Serializable;
 public class RecordId implements Serializable {
 
     private static final long serialVersionUID = 1L;
-
+    
+    //PRIVATE
+    private PageId m_pid;
+    private int m_tun;
+    //PRIVATE
     /**
      * Creates a new RecordId referring to the specified PageId and tuple
      * number.
@@ -20,23 +24,22 @@ public class RecordId implements Serializable {
      *            the tuple number within the page.
      */
     public RecordId(PageId pid, int tupleno) {
-        // some code goes here
+    	m_pid = pid;
+    	m_tun = tupleno;
     }
 
     /**
      * @return the tuple number this RecordId references.
      */
     public int tupleno() {
-        // some code goes here
-        return 0;
+        return m_tun;
     }
 
     /**
      * @return the page id this RecordId references.
      */
     public PageId getPageId() {
-        // some code goes here
-        return null;
+        return m_pid;
     }
 
     /**
@@ -47,9 +50,14 @@ public class RecordId implements Serializable {
      */
     @Override
     public boolean equals(Object o) {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
-    }
+    	try {
+    	RecordId cur = (RecordId) o; 
+    	return (cur.m_pid.equals(this.m_pid) && cur.m_tun == this.m_tun);
+    	} 
+    	catch (Exception e) {
+    		return false;
+    	}
+    }	
 
     /**
      * You should implement the hashCode() so that two equal RecordId instances

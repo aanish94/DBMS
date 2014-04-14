@@ -39,7 +39,7 @@ public class TupleDesc implements Serializable {
     private Type [] m_t; //Stores type of ith field. 
     private String [] m_n; //Stores name of ith field.
     //PRIVATE    
-    
+ 
     /**
      * @return
      *        An iterator which iterates over all the field TDItems
@@ -64,7 +64,9 @@ public class TupleDesc implements Serializable {
      *            be null.
      */
     public TupleDesc(Type[] typeAr, String[] fieldAr) {
+    	if (m_t == null) { return; }
     	m_t = typeAr;
+    	if (m_n == null) { m_n = new String[m_t.length]; }
     	m_n = fieldAr;
     }
 
@@ -127,11 +129,22 @@ public class TupleDesc implements Serializable {
      *             if no field with a matching name is found.
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
+    	//if (name == null || m_n == null ) { throw new NoSuchElementException(); }
+    	if (name == null) {
+            throw new NoSuchElementException("null is not a valid field name");
+        }
+
+        if (m_n == null) {
+        //    throw new NoSuchElementException("No fields have names");
+        }
+        
     	for (int j = 0 ; j < m_n.length ; j++)
     	{
-    		if (m_n[j].equals(name)) return j;
+    		String s = m_n[j];
+    		if (s == null) {continue; }
+    		if (s.equals(name)) {return j;}
     	}
-        return 0;
+        throw new NoSuchElementException();
     }
 
     /**
@@ -158,6 +171,7 @@ public class TupleDesc implements Serializable {
      * @return the new TupleDesc
      */
     public static TupleDesc merge(TupleDesc td1, TupleDesc td2) {
+    	//if (td1 == null || td2 == null) { ; }
     	int tsize = td1.numFields() + td2.numFields();
     	
     	Type [] m_nT = new Type[tsize];
@@ -175,10 +189,8 @@ public class TupleDesc implements Serializable {
     		m_nN[j] = td2.getFieldName(j);
     	}
     	
-    	TupleDesc temp = new TupleDesc(m_nT,m_nN);
-    	
-        return temp;
-    }
+    	return new TupleDesc(m_nT,m_nN);
+        }
 
     /**
      * Compares the specified object with this TupleDesc for equality. Two
@@ -190,14 +202,19 @@ public class TupleDesc implements Serializable {
      * @return true if the object is equal to this TupleDesc.
      */
     public boolean equals(Object o) {
-    	if (!(o instanceof TupleDesc)) { return false; }
-    	
-    	TupleDesc cur = (TupleDesc) o; 
-    	if (cur.getSize() != this.getSize()) { return false; }
-    	
-    	for (int i = 0; i < m_t.length; i++)
-    	{
-    		if (m_t[i] != cur.m_t[i]) { return false; }
+    	//if (!(o instanceof TupleDesc)) { return false; }
+    	try {
+	    	TupleDesc cur = (TupleDesc) o; 
+	    	
+	    	if (cur.getSize() != this.getSize()) { return false; }
+	    	
+	    	for (int i = 0; i < m_t.length; i++)
+	    	{
+	    		if (m_t[i] != cur.m_t[i]) { return false; }
+	    	}
+    	}
+    	catch (Exception e) {
+    		return false;
     	}
     	
         return true;

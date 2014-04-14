@@ -36,11 +36,10 @@ public class Catalog {
 		private String getPKey(){
 			return m_pk;
 		}
-		
 	}
 	
-	private HashMap<Table,DbFile> m_f;
-	private HashMap<Integer,Table> m_t;
+	private ConcurrentHashMap<Table,DbFile> m_f;
+	private ConcurrentHashMap<Integer,Table> m_t;
 	//PRIVATE
 	
     /**
@@ -48,8 +47,8 @@ public class Catalog {
      * Creates a new, empty catalog.
      */
     public Catalog() {
-    	m_f = new HashMap<Catalog.Table, DbFile>();
-    	m_t = new HashMap<Integer, Catalog.Table>();
+    	m_f = new ConcurrentHashMap<Catalog.Table, DbFile>();
+    	m_t = new ConcurrentHashMap<Integer, Catalog.Table>();
     }
 
     /**
@@ -90,7 +89,6 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        // some code goes here
     	for (Map.Entry entry : m_f.entrySet() )
     	{
     		Table cur = (Table) entry.getKey();
@@ -106,7 +104,6 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // some code goes here
     	if (!(m_t.containsKey(tableid))) { throw new NoSuchElementException(); }
     	Table tcur = m_t.get(tableid);
     	
@@ -114,7 +111,6 @@ public class Catalog {
     	DbFile dcur = m_f.get(tcur);
     	
     	return dcur.getTupleDesc();
-    	
     }
 
     /**

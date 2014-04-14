@@ -26,13 +26,18 @@ public class BufferPool {
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
 
+    //PRIVATE
+    private ConcurrentHashMap<PageId, Page> m_pages;
+    private int m_numPages;
+    //PRIVATE
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
+    	this.m_pages = new ConcurrentHashMap<PageId, Page>();
+    	m_numPages = numPages;
     }
     
     public static int getPageSize() {
@@ -52,7 +57,7 @@ public class BufferPool {
      * The retrieved page should be looked up in the buffer pool.  If it
      * is present, it should be returned.  If it is not present, it should
      * be added to the buffer pool and returned.  If there is insufficient
-     * space in the buffer pool, an page should be evicted and the new page
+     * space in the buffer pool, a page should be evicted and the new page
      * should be added in its place.
      *
      * @param tid the ID of the transaction requesting the page
@@ -61,8 +66,12 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+    	if (!m_pages.contains(pid)) { 
+    		int m_tid = pid.getTableId();
+    		DbFile m_f = Database.getCatalog().getDatabaseFile(m_tid);
+    		m_pages.put(pid, m_f.readPage(pid));
+    	}
+    	return m_pages.get(pid);
     }
 
     /**

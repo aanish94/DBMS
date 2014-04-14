@@ -66,9 +66,7 @@ public class HeapPage implements Page {
         @return the number of tuples on this page
     */
     private int getNumTuples() {        
-        // some code goes here
-        return 0;
-
+        return (int) Math.floor((BufferPool.getPageSize()*8) / (td.getSize() * 8 + 1));
     }
 
     /**
@@ -76,10 +74,7 @@ public class HeapPage implements Page {
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
     private int getHeaderSize() {        
-        
-        // some code goes here
-        return 0;
-                 
+        return (int) Math.ceil( getNumEmptySlots() / 8);         
     }
     
     /** Return a view of this page before it was modified
@@ -111,8 +106,7 @@ public class HeapPage implements Page {
      * @return the PageId associated with this page.
      */
     public HeapPageId getId() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+    	return pid;
     }
 
     /**
@@ -282,7 +276,9 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
         // some code goes here
-        return 0;
+    	int m_total = getNumTuples();
+    	//Check each slot using isSlotUsed
+        return m_total;
     }
 
     /**
@@ -306,8 +302,31 @@ public class HeapPage implements Page {
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
-        // some code goes here
-        return null;
+        return new HeapPageIterator(this);
+    }
+    
+    class HeapPageIterator implements Iterator<Tuple>
+    {
+    	private HeapPage m_p;
+    	private int m_numT;
+    	private int m_curT;
+    	
+    	public HeapPageIterator(HeapPage p) { 
+    		this.m_p = p;
+    		m_curT = 0;
+    		m_numT = getNumTuples();
+    		}
+    	
+		public boolean hasNext() {
+			// TODO Auto-generated method stub
+			return m_curT <= m_numT;
+		}
+		public Tuple next() {
+			// TODO Auto-generated method stub
+			if (m_numT - m_curT <=1 ) { return null; }
+			m_curT++;
+			return m_p.tuples[m_curT];
+		}
     }
 
 }

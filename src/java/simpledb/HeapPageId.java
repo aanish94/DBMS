@@ -3,6 +3,10 @@ package simpledb;
 /** Unique identifier for HeapPage objects. */
 public class HeapPageId implements PageId {
 
+	//PRIVATE
+	private int m_tid;
+	private int m_pn;
+	//PRIVATE
     /**
      * Constructor. Create a page id structure for a specific page of a
      * specific table.
@@ -11,13 +15,13 @@ public class HeapPageId implements PageId {
      * @param pgNo The page number in that table.
      */
     public HeapPageId(int tableId, int pgNo) {
-        // some code goes here
+    	m_tid = tableId;
+    	m_pn = pgNo;
     }
 
     /** @return the table associated with this PageId */
     public int getTableId() {
-        // some code goes here
-        return 0;
+    	return m_tid;
     }
 
     /**
@@ -25,8 +29,7 @@ public class HeapPageId implements PageId {
      *   this PageId
      */
     public int pageNumber() {
-        // some code goes here
-        return 0;
+        return m_pn;
     }
 
     /**
@@ -48,8 +51,13 @@ public class HeapPageId implements PageId {
      *   ids are the same)
      */
     public boolean equals(Object o) {
-        // some code goes here
-        return false;
+    	try {
+        	HeapPageId cur = (HeapPageId) o; 
+        	return (cur.m_pn == this.m_pn && cur.m_tid==this.m_tid);
+    		}
+    	catch (Exception e){
+    		return false;
+    		}
     }
 
     /**

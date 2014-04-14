@@ -91,12 +91,6 @@ public class Tuple implements Serializable {
      */
     public String toString() {
         // some code goes here
-    	/**String text = null;
-    	for (int i = 0 ; i < a.size() ; i++)
-    	{
-    		Field cur = a.get(i);
-    		text+=cur.toString();
-    	}**/
         throw new UnsupportedOperationException("Implement this");
     }
     
@@ -106,8 +100,7 @@ public class Tuple implements Serializable {
      * */
     public Iterator<Field> fields()
     {
-        // some code goes here
-        return null;
+        return new FieldIterator(this);
     }
     
     /**
@@ -116,5 +109,29 @@ public class Tuple implements Serializable {
     public void resetTupleDesc(TupleDesc td)
     {
     	m_td = td;
+    }
+    
+    class FieldIterator implements Iterator<Field>
+    {
+    	private Tuple m_if;
+    	private int m_numT;
+    	private int m_curT;
+    	
+    	public FieldIterator(Tuple f) { 
+    		this.m_if = f;
+    		m_curT = 0;
+    		m_numT = m_f.length;
+    		}
+    	
+		public boolean hasNext() {
+			// TODO Auto-generated method stub
+			return m_curT <= m_numT;
+		}
+		public Field next() {
+			// TODO Auto-generated method stub
+			if (m_numT - m_curT <=1 ) { return null; }
+			m_curT++;
+			return m_if.m_f[m_curT];
+		}
     }
 }
