@@ -130,13 +130,7 @@ public class TupleDesc implements Serializable {
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
     	//if (name == null || m_n == null ) { throw new NoSuchElementException(); }
-    	if (name == null) {
-            throw new NoSuchElementException("null is not a valid field name");
-        }
-
-        if (m_n == null) {
-        //    throw new NoSuchElementException("No fields have names");
-        }
+    	
         
     	for (int j = 0 ; j < m_n.length ; j++)
     	{
