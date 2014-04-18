@@ -291,7 +291,9 @@ public class HeapPage implements Page {
 	 */
 	public boolean isSlotUsed(int i) 
 	{
-		return false;
+		int slot = i/8;
+		int bitposition = i%8;
+		return ((header[slot] & (1 << bitposition)) > 0);
 	}
 
 	/**
@@ -312,7 +314,6 @@ public class HeapPage implements Page {
 
 	class HeapPageIterator implements Iterator<Tuple>
 	{
-		//Tuples on HeapPage
 		private List<Tuple> tuples;
 		Iterator<Tuple> iter;
 
@@ -320,7 +321,6 @@ public class HeapPage implements Page {
 			tuples = new ArrayList<Tuple>();
 			for (int i = 0; i < p.numSlots; i++)
 			{
-				//Iterator shouldn't return tuples in empty slots!
 				if (p.isSlotUsed(i)) {tuples.add(p.tuples[i]);}	
 			}
 			iter = tuples.iterator();

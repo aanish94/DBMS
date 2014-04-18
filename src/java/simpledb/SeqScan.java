@@ -10,6 +10,13 @@ import java.util.*;
 public class SeqScan implements DbIterator {
 
     private static final long serialVersionUID = 1L;
+    
+    private String tablealias;
+    private int _tableid;
+    private TransactionId _tid;
+    private HeapFile heapfile;
+    private DbFileIterator dbit;
+    private DbFile file;
 
     /**
      * Creates a sequential scan over the specified table as a part of the
@@ -28,7 +35,12 @@ public class SeqScan implements DbIterator {
      *            tableAlias.null, or null.null).
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
-        // some code goes here
+    	_tableid = tableid;
+    	tablealias = tableAlias;
+    	_tid = tid;
+    	file = Database.getCatalog().getDatabaseFile(tableid);
+    	heapfile = (HeapFile) file;
+    	dbit = heapfile.iterator(tid);
     }
 
     /**
@@ -37,7 +49,7 @@ public class SeqScan implements DbIterator {
      *       be the actual name of the table in the catalog of the database
      * */
     public String getTableName() {
-        return null;
+    	return Database.getCatalog().getTableName(_tableid);
     }
     
     /**
@@ -45,8 +57,7 @@ public class SeqScan implements DbIterator {
      * */
     public String getAlias()
     {
-        // some code goes here
-        return null;
+    	return this.tablealias;
     }
 
     /**
@@ -62,7 +73,8 @@ public class SeqScan implements DbIterator {
      *            tableAlias.null, or null.null).
      */
     public void reset(int tableid, String tableAlias) {
-        // some code goes here
+    	this._tableid = tableid;
+    	this.tablealias = tableAlias;
     }
 
     public SeqScan(TransactionId tid, int tableid) {
@@ -70,7 +82,7 @@ public class SeqScan implements DbIterator {
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+    	dbit.open();
     }
 
     /**
@@ -82,28 +94,37 @@ public class SeqScan implements DbIterator {
      * @return the TupleDesc with field names from the underlying HeapFile,
      *         prefixed with the tableAlias string from the constructor.
      */
-    public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+    public TupleDesc getTupleDesc() 
+    {
+        TupleDesc td = file.getTupleDesc();
+        
+        Type[] types = new Type[td.numFields()];
+        String[] names = new String[td.numFields()];
+        for (int i = 0; i < td.numFields(); i++) 
+        {
+            types[i] = td.getFieldType(i);
+            names[i] = this.tablealias + "." + td.getFieldName(i);
+        }
+       TupleDesc td1 = new TupleDesc(types, names);
+       return td1;
+        
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return false;
+    	return dbit.hasNext();
     }
 
     public Tuple next() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+    	return dbit.next();
     }
 
     public void close() {
-        // some code goes here
+    	dbit.close();
     }
 
     public void rewind() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+    	dbit.rewind();
     }
 }
