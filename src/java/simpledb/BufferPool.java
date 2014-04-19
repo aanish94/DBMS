@@ -29,6 +29,7 @@ public class BufferPool {
 	//PRIVATE
 	private ConcurrentHashMap<PageId, Page> m_pages;
 	private int m_numPages;
+
 	//PRIVATE
 	/**
 	 * Creates a BufferPool that caches up to numPages pages.
@@ -67,13 +68,16 @@ public class BufferPool {
 	 */
 	public  Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException 
 	{
-		if (!m_pages.contains(pid)) 
-		{ 
+		Page page = m_pages.get(pid);
+		if (page != null)
+			return page;
+		else {
 			int m_tid = pid.getTableId();
 			DbFile m_f = Database.getCatalog().getDatabaseFile(m_tid);
-			m_pages.put(pid, m_f.readPage(pid));
+			Page add_Page = m_f.readPage(pid);
+			m_pages.put(pid, add_Page);
+			return add_Page;
 		}
-		return m_pages.get(pid);
 	}
 
 	/**

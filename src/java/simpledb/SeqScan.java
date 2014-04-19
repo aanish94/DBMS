@@ -35,7 +35,7 @@ public class SeqScan implements DbIterator {
      *            tableAlias.null, or null.null).
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
-    	_tableid = tableid;
+    	_tableid = (int) tableid;
     	tablealias = tableAlias;
     	_tid = tid;
     	file = Database.getCatalog().getDatabaseFile(tableid);
@@ -73,7 +73,7 @@ public class SeqScan implements DbIterator {
      *            tableAlias.null, or null.null).
      */
     public void reset(int tableid, String tableAlias) {
-    	this._tableid = tableid;
+    	this._tableid = (int) tableid;
     	this.tablealias = tableAlias;
     }
 
