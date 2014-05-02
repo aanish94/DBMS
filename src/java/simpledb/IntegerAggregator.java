@@ -15,7 +15,9 @@ public class IntegerAggregator implements Aggregator {
 	private Op m_op;
 	private TupleDesc m_td;
 	private ArrayList<Tuple> tupleGroup;
-
+	//NEEDED FOR THE AVERAGE CALCULATION
+	ArrayList<Integer> count;
+	ArrayList<Integer> sum;
 	/**
 	 * Aggregate constructor
 	 * 
@@ -37,7 +39,10 @@ public class IntegerAggregator implements Aggregator {
 		m_gbfieldtype = gbfieldtype;
 		m_afield = afield;
 		m_op = what;
-
+		
+		count = new ArrayList<Integer>();
+		sum = new ArrayList<Integer>();
+		
 		if (m_gbfield == Aggregator.NO_GROUPING)
 		{
 			Type [] temp = new Type[1];
@@ -53,18 +58,21 @@ public class IntegerAggregator implements Aggregator {
 		}
 		tupleGroup = new ArrayList<Tuple>();
 	}
-	
-	private void firstTupleAdded(Tuple Tup, IntField Val, IntField cmpField,int index)
+
+	private void tupleAggregator(Tuple Tup, IntField Val, IntField cmpField,int index, boolean first)
 	{
-		//helps
+		//HELPER FUNCTION
 		Tuple curTup = Tup;
 		IntField newValue = Val;
-		
+
 		int curVal = newValue.getValue();
-		
+
 		boolean flag = false;
 		int cmpVal=0;
 		if (cmpField != null) { cmpVal = cmpField.getValue(); flag = true;}
+
+		//STUFF FOR FINDING AVERAGES
+		int avgIndex = 0;
 		
 		if (m_op == Op.MIN)
 		{
@@ -92,23 +100,61 @@ public class IntegerAggregator implements Aggregator {
 		{
 			if (flag)
 			{
-				curTup.setField(0, new IntField(cmpVal + curVal));
+				curTup.setField(index, new IntField(cmpVal + curVal));
 			}
+			else
 			{ curTup.setField(index, newValue); }
 		}
 		else if (m_op == Op.COUNT)
 		{
 			if (flag)
 			{
-				curTup.setField(0, new IntField(cmpVal+1));
+				curTup.setField(index, new IntField(cmpVal+1));
 			}
+			else
 			{ curTup.setField(index, new IntField(1)); }
 		}
 		else if (m_op == Op.AVG)
 		{
-			//MORE COMPLICATED THAN OTHERS. WILL IMPLEMENT LATER
+			if (flag)
+			{
+				if (first)
+				{
+					avgIndex = 0;
+					count.add(1);
+					sum.add(curVal);
+					curTup.setField(index, new IntField(curVal));
+				}
+				else
+				{
+					int total = sum.get(avgIndex) + curVal;
+					int counter = count.get(avgIndex) + 1;
+					count.set(avgIndex,counter);
+					sum.set(avgIndex,total);
+					curTup.setField(index, new IntField(total/counter));
+				}
+			}
+			else
+			{
+				if (first)
+				{
+					avgIndex = 0;
+					count.add(1);
+					sum.add(curVal);
+					curTup.setField(index, new IntField(curVal));
+				}
+				else 
+				{
+					int total = sum.get(avgIndex) + curVal;
+					int counter = count.get(avgIndex) + 1;
+					count.set(avgIndex,counter);
+					sum.set(avgIndex,total);
+					curTup.setField(index, new IntField(total/counter));
+				}
+			}
 		}
 	}
+	
 	/**
 	 * Merge a new tuple into the aggregate, grouping as indicated in the
 	 * constructor
@@ -130,7 +176,7 @@ public class IntegerAggregator implements Aggregator {
 				//FIRST TUPLE
 				Tuple curTup = new Tuple(m_td);
 				IntField newValue = new IntField(curVal);
-				firstTupleAdded(curTup,newValue,null,0);
+				tupleAggregator(curTup,newValue,null,0,true);
 				tupleGroup.add(curTup);
 			}
 			else
@@ -138,35 +184,8 @@ public class IntegerAggregator implements Aggregator {
 				//There are already other tuples inserted.
 				Tuple first = tupleGroup.get(0);
 				IntField compareField = (IntField) first.getField(0);
-				//int compareVal = compareField.getValue();
 				IntField newValue = new IntField(curVal);
-				firstTupleAdded(first, newValue, compareField, 0);
-				/*if (m_op == Op.MIN)
-				{
-					if (compareVal > curVal)
-					{
-						first.setField(0, newValue);
-					}
-				}
-				else if (m_op == Op.MAX)
-				{
-					if (compareVal < curVal)
-					{
-						first.setField(0, newValue);
-					}
-				}
-				else if (m_op == Op.SUM)
-				{
-					first.setField(0, new IntField(compareVal + curVal));
-				}
-				else if (m_op == Op.COUNT)
-				{
-					first.setField(0, new IntField(compareVal+1));
-				}	
-				else if (m_op == Op.AVG)
-				{
-					//MORE COMPLICATED THAN OTHERS. WILL IMPLEMENT LATER
-				}*/
+				tupleAggregator(first, newValue, compareField, 0,false);
 			}
 		}
 		else
@@ -190,41 +209,15 @@ public class IntegerAggregator implements Aggregator {
 				current = new Tuple(m_td);
 				IntField newValue = new IntField(curVal);
 				current.setField(0, tupGroup);
-				firstTupleAdded(current,newValue,null,1);
+				tupleAggregator(current,newValue,null,1,true);
 				tupleGroup.add(current);
 			}
 			//There are already grouped tuples
 			else
 			{
 				IntField compareField = (IntField) current.getField(1);
-				int compareVal = compareField.getValue();
 				IntField newValue = new IntField(curVal);
-				if (m_op == Op.MIN)
-				{
-					if (compareVal > curVal)
-					{
-						current.setField(1, newValue);
-					}
-				}
-				else if (m_op == Op.MAX)
-				{
-					if (compareVal < curVal)
-					{
-						current.setField(1, newValue);
-					}
-				}
-				else if (m_op == Op.SUM)
-				{
-					current.setField(1, new IntField(compareVal + curVal));
-				}
-				else if (m_op == Op.COUNT)
-				{
-					current.setField(1, new IntField(compareVal+1));
-				}
-				else if (m_op == Op.AVG)
-				{
-					//MORE COMPLICATED THAN OTHERS. WILL IMPLEMENT LATER
-				}
+				tupleAggregator(current, newValue, compareField, 1,false);
 			}
 		}
 	}

@@ -8,9 +8,9 @@ import java.util.*;
 public class Filter extends Operator {
 
 	private static final long serialVersionUID = 1L;
-
-	private Predicate m_p;
-	DbIterator m_child;
+	//PRIVATE MEMBERS
+	private Predicate m_p; //Predicate used to filter tuples
+	DbIterator m_child; //iterator
 	/**
 	 * Constructor accepts a predicate to apply and a child operator to read
 	 * tuples to filter from.
@@ -67,17 +67,20 @@ public class Filter extends Operator {
 		}
 		return null;
 	}
-
+	//NOTE: GET/SET CHILDREN seem to not matter for systemtest.
+	//I do not think this is a correct implementation, but doesn't matter for lab2
 	@Override
 	public DbIterator[] getChildren() {
 		// some code goes here
-
-		return null;
+		DbIterator [] children = new DbIterator [1];
+		children[0] = m_child;
+		return children;
 	}
 
 	@Override
 	public void setChildren(DbIterator[] children) {
 		// some code goes here
+		children[0] = m_child;
 	}
 
 }

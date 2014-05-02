@@ -9,9 +9,9 @@ public class Join extends Operator {
 
 	private static final long serialVersionUID = 1L;
 
-	private JoinPredicate m_jp;
-	private DbIterator m_child1;
-	private DbIterator m_child2;
+	private JoinPredicate m_jp; //Predicate for joining children
+	private DbIterator m_child1; //Left relation
+	private DbIterator m_child2; //Right relation
 	private Tuple temp;
 
 	/**
@@ -34,7 +34,17 @@ public class Join extends Operator {
 	public JoinPredicate getJoinPredicate() {
 		return m_jp;
 	}
-
+	
+	private String FieldNameCreator(TupleDesc td,int size)
+	{
+		String fieldName = "";
+		for (int j = 0; j < size; j++)
+		{
+			fieldName += td.getFieldName(j) + " ";
+		}
+		return fieldName;
+		
+	}
 	/**
 	 * @return
 	 *       the field name of join field1. Should be quantified by
@@ -43,12 +53,7 @@ public class Join extends Operator {
 	public String getJoinField1Name() {
 		TupleDesc first = m_child1.getTupleDesc();
 		int count = first.numFields();
-		String name = "";
-		for (int i = 0 ; i < count; i++)
-		{
-			name+=first.getFieldName(i)+" ";
-		}
-		return name;
+		return FieldNameCreator(first, count);
 	}
 
 	/**
@@ -59,12 +64,7 @@ public class Join extends Operator {
 	public String getJoinField2Name() {
 		TupleDesc first = m_child2.getTupleDesc();
 		int count = first.numFields();
-		String name = "";
-		for (int i = 0 ; i < count; i++)
-		{
-			name+=first.getFieldName(i)+" ";
-		}
-		return name;
+		return FieldNameCreator(first, count);
 	}
 
 	/**
@@ -129,22 +129,24 @@ public class Join extends Operator {
 			while (m_child2.hasNext())
 			{
 				Tuple right = m_child2.next(); 
-				//If tuple 1 and tuple 2 satisfy join predicate
+				//If tuple 1 and tuple 2 satisfy join predicate, join them
 				if (m_jp.filter(left, right))
 				{
-					Tuple total = new Tuple(getTupleDesc());
+					temp = left;
+					/*Tuple total = new Tuple(getTupleDesc());
 					//TupleDesc is combination of left and right
 					int totalsize = getTupleDesc().numFields();
 					int leftsize = m_child1.getTupleDesc().numFields();
 					//For each field in the merged TupleDesc, combine left and right tuples
 					for (int j = 0; j < totalsize; j++)
 					{
-						//Cross Product of Tuples
+						//Effectively the cross Product of Tuples
 						if (j < leftsize) { total.setField(j, left.getField(j)); } 
 						else { total.setField(j, right.getField(j - leftsize)); }
 					}
-					temp = left;
-					return total;
+					
+					return total;*/
+					return TupleMaker(left, right, getTupleDesc());
 				}
 			}
 			//There are no more right tuples
@@ -160,16 +162,27 @@ public class Join extends Operator {
 		temp = null;
 		return null;                
 	}
-
+	
+	private Tuple TupleMaker(Tuple left,Tuple right,TupleDesc td)
+	{
+		Tuple joined = new Tuple(td);
+		int joinedSize = td.numFields();
+		int leftSize = m_child1.getTupleDesc().numFields();
+		for (int j = 0 ; j < joinedSize; j++)
+		{
+			if (j < leftSize) joined.setField(j,left.getField(j));
+			else { joined.setField(j,right.getField(j - leftSize)); }
+		}
+		return joined;
+		
+	}
 	@Override
 	public DbIterator[] getChildren() {
-		// some code goes here
 		return new DbIterator[2];
 	}
 
 	@Override
 	public void setChildren(DbIterator[] children) {
-		// some code goes here
 		children[0] = m_child1;
 		children[1] = m_child2;
 	}

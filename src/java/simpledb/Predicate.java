@@ -44,7 +44,7 @@ public class Predicate implements Serializable {
 
     }
     
-    
+    //PRIVATE MEMBERS 
     private int m_field;
     private Op m_op;
     private Field m_operand;
@@ -99,8 +99,8 @@ public class Predicate implements Serializable {
      * @return true if the comparison is true, false otherwise.
      */
     public boolean filter(Tuple t) {
-    	Field x = t.getField(m_field);
-    	return x.compare(m_op, m_operand);
+    	Field temp = t.getField(m_field);
+    	return temp.compare(m_op, m_operand);
     }
 
     /**
