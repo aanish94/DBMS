@@ -82,7 +82,6 @@ public class Join extends Operator {
 		m_child1.open();
 		m_child2.open();
 		super.open();
-		temp = null;
 	}
 
 	public void close() {
@@ -94,7 +93,6 @@ public class Join extends Operator {
 	public void rewind() throws DbException, TransactionAbortedException {
 		m_child1.rewind();
 		m_child2.rewind();
-		temp = null;
 	}
 
 	/**
@@ -133,20 +131,8 @@ public class Join extends Operator {
 				if (m_jp.filter(left, right))
 				{
 					temp = left;
-					/*Tuple total = new Tuple(getTupleDesc());
-					//TupleDesc is combination of left and right
-					int totalsize = getTupleDesc().numFields();
-					int leftsize = m_child1.getTupleDesc().numFields();
-					//For each field in the merged TupleDesc, combine left and right tuples
-					for (int j = 0; j < totalsize; j++)
-					{
-						//Effectively the cross Product of Tuples
-						if (j < leftsize) { total.setField(j, left.getField(j)); } 
-						else { total.setField(j, right.getField(j - leftsize)); }
-					}
-					
-					return total;*/
-					return TupleMaker(left, right, getTupleDesc());
+					//TupleMaker effectively performs the cross-product of left and right 
+					return CrossProduct(left, right, getTupleDesc());
 				}
 			}
 			//There are no more right tuples
@@ -163,22 +149,29 @@ public class Join extends Operator {
 		return null;                
 	}
 	
-	private Tuple TupleMaker(Tuple left,Tuple right,TupleDesc td)
+	private Tuple CrossProduct(Tuple left,Tuple right,TupleDesc td)
 	{
 		Tuple joined = new Tuple(td);
 		int joinedSize = td.numFields();
+		//TupleDesc is combination of left and right
 		int leftSize = m_child1.getTupleDesc().numFields();
+		//For each field in the merged TupleDesc, combine left and right tuples
 		for (int j = 0 ; j < joinedSize; j++)
 		{
+			//Effectively the cross Product of Tuples
 			if (j < leftSize) joined.setField(j,left.getField(j));
 			else { joined.setField(j,right.getField(j - leftSize)); }
 		}
+		//joined is combination of left, right
 		return joined;
 		
 	}
 	@Override
 	public DbIterator[] getChildren() {
-		return new DbIterator[2];
+		DbIterator[] temp =  new DbIterator[2];
+		temp[0] = m_child1;
+		temp[1] = m_child2;
+		return temp;
 	}
 
 	@Override

@@ -8,16 +8,18 @@ import java.util.ArrayList;
 public class IntegerAggregator implements Aggregator {
 
 	private static final long serialVersionUID = 1L;
-
+	//Group field, type
 	private int m_gbfield;
 	private Type m_gbfieldtype;
+	//Aggregate field
 	private int m_afield;
+	//Operator
 	private Op m_op;
 	private TupleDesc m_td;
 	private ArrayList<Tuple> tupleGroup;
 	//NEEDED FOR THE AVERAGE CALCULATION
-	ArrayList<Integer> count;
-	ArrayList<Integer> sum;
+	int count; //number of values
+	int sum; //sum of values
 	/**
 	 * Aggregate constructor
 	 * 
@@ -39,16 +41,15 @@ public class IntegerAggregator implements Aggregator {
 		m_gbfieldtype = gbfieldtype;
 		m_afield = afield;
 		m_op = what;
-		
-		count = new ArrayList<Integer>();
-		sum = new ArrayList<Integer>();
-		
+
+		//If no grouping => tuple is of form ( aggregate Value ) 
 		if (m_gbfield == Aggregator.NO_GROUPING)
 		{
 			Type [] temp = new Type[1];
 			temp[0] = Type.INT_TYPE;
 			m_td = new TupleDesc(temp);
 		}
+		//If grouping => tuple is of form ( groupValue, aggregate Value ) 
 		else
 		{
 			Type [] temp = new Type[2];
@@ -56,9 +57,16 @@ public class IntegerAggregator implements Aggregator {
 			temp[1] = Type.INT_TYPE;
 			m_td = new TupleDesc(temp);
 		}
-		tupleGroup = new ArrayList<Tuple>();
-	}
 
+		tupleGroup = new ArrayList<Tuple>();
+		count = 0;
+		sum = 0;
+	}
+	//================HELPER FUNCTION ==> MERGETUPLEINTOGROUP ================
+	//PARAMETERS: Tuple Tup => the tuple currently considered
+	//Two IntField's corresponding to the aggregate field of the tuple and the comparison field
+	//Index => if no grouping, tupleDesc has one field and index is 0; if grouping, tupleDesc has two fields and index is 1
+	//first indicates whether or not tuple is first being considered ( relevant to average calculation ) 
 	private void tupleAggregator(Tuple Tup, IntField Val, IntField cmpField,int index, boolean first)
 	{
 		//HELPER FUNCTION
@@ -66,40 +74,45 @@ public class IntegerAggregator implements Aggregator {
 		IntField newValue = Val;
 
 		int curVal = newValue.getValue();
-
+		//flag is set true if a valid comparison field is supplied
 		boolean flag = false;
-		int cmpVal=0;
+		int cmpVal = 0;
 		if (cmpField != null) { cmpVal = cmpField.getValue(); flag = true;}
 
-		//STUFF FOR FINDING AVERAGES
-		int avgIndex = 0;
-		
 		if (m_op == Op.MIN)
 		{
-			if (flag) 
+			//MINIMUM DETERMINATION
+			if (flag)  
 			{
 				if (cmpVal > curVal)
 				{
+					//The current value is smaller and replaces comparison value
 					curTup.setField(index, newValue);
 				}
 			}
+			//By default, the first ( & only ) value is the minimum
 			else { curTup.setField(index, newValue); }
 		}
 		else if (m_op == Op.MAX)
 		{
+			//MAXIMUM DETERMINATION
 			if (flag)
 			{
 				if (cmpVal < curVal)
 				{
+					//The current value is larger and replaces the comparison value
 					curTup.setField(index, newValue);
 				}
 			}
+			//By default, the first ( & only ) value is the maximum 
 			else { curTup.setField(index, newValue); }
 		}
 		else if (m_op == Op.SUM)
 		{
+			//SUM DETERMINATION
 			if (flag)
 			{
+				//Replace the cmp value with the sum of current and comparison
 				curTup.setField(index, new IntField(cmpVal + curVal));
 			}
 			else
@@ -107,54 +120,29 @@ public class IntegerAggregator implements Aggregator {
 		}
 		else if (m_op == Op.COUNT)
 		{
+			//COUNT DETERMINATION
 			if (flag)
 			{
+				//Increment count by 1
 				curTup.setField(index, new IntField(cmpVal+1));
 			}
 			else
+				//Initialize count
 			{ curTup.setField(index, new IntField(1)); }
 		}
 		else if (m_op == Op.AVG)
 		{
-			if (flag)
-			{
-				if (first)
-				{
-					avgIndex = 0;
-					count.add(1);
-					sum.add(curVal);
-					curTup.setField(index, new IntField(curVal));
-				}
-				else
-				{
-					int total = sum.get(avgIndex) + curVal;
-					int counter = count.get(avgIndex) + 1;
-					count.set(avgIndex,counter);
-					sum.set(avgIndex,total);
-					curTup.setField(index, new IntField(total/counter));
-				}
-			}
-			else
-			{
-				if (first)
-				{
-					avgIndex = 0;
-					count.add(1);
-					sum.add(curVal);
-					curTup.setField(index, new IntField(curVal));
-				}
-				else 
-				{
-					int total = sum.get(avgIndex) + curVal;
-					int counter = count.get(avgIndex) + 1;
-					count.set(avgIndex,counter);
-					sum.set(avgIndex,total);
-					curTup.setField(index, new IntField(total/counter));
-				}
-			}
+			//AVERAGE DETERMINATION
+			//Increment count by 1 and sum by the current value
+			count+=1;
+			sum+=curVal;
+			//There is only one value and so the average is the value itself
+			if (first) curTup.setField(index, new IntField(curVal));
+			//Average = sum of all values / number of values
+			else curTup.setField(index, new IntField(sum/count));
 		}
 	}
-	
+
 	/**
 	 * Merge a new tuple into the aggregate, grouping as indicated in the
 	 * constructor

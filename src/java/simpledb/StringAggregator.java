@@ -8,9 +8,12 @@ import java.util.ArrayList;
 public class StringAggregator implements Aggregator {
 
 	private static final long serialVersionUID = 1L;
+	//Group Field, Type
 	private int m_gbfield;
 	private Type m_gbfieldtype;
+	//Aggregation Field
 	private int m_afield;
+	//Operator => ONLY COUNT is SUPPORTED FOR STRINGS
 	private Op m_op;
 
 	private TupleDesc m_td;
@@ -25,18 +28,20 @@ public class StringAggregator implements Aggregator {
 	 */
 
 	public StringAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
-		if (what != Op.COUNT) { throw new IllegalArgumentException(); }
+		if (what != Op.COUNT) throw new IllegalArgumentException(); //Only COUNT OP is Supported
 		m_gbfield = gbfield;
 		m_gbfieldtype = gbfieldtype;
 		m_afield = afield;
 		m_op = what;
-
+		
+		//If no grouping => tuple is of form ( aggregate Value )
 		if (gbfield == Aggregator.NO_GROUPING)
 		{
 			Type [] temp = new Type[1];
 			temp[0] = Type.INT_TYPE;
 			m_td = new TupleDesc(temp);
 		}
+		//If grouping => tuple is of form ( groupValue, aggregate Value ) 
 		else
 		{
 			Type [] temp = new Type[2];
@@ -44,6 +49,7 @@ public class StringAggregator implements Aggregator {
 			temp[1] = Type.INT_TYPE;
 			m_td = new TupleDesc(temp);
 		}
+		
 		tupleGroup = new ArrayList<Tuple>();
 	}
 
@@ -52,8 +58,6 @@ public class StringAggregator implements Aggregator {
 	 * @param tup the Tuple containing an aggregate field and a group-by field
 	 */
 	public void mergeTupleIntoGroup(Tuple tup) {
-		//Field and Value we are considering
-		//List of Grouped Tuples
 
 		if (m_gbfield == Aggregator.NO_GROUPING)
 		{
@@ -62,6 +66,7 @@ public class StringAggregator implements Aggregator {
 			{
 				//FIRST TUPLE
 				Tuple curTup = new Tuple(m_td);
+				//Initializing the count to be 1
 				curTup.setField(0, new IntField(1));
 				tupleGroup.add(curTup);
 			}
@@ -70,6 +75,7 @@ public class StringAggregator implements Aggregator {
 				//There are already other tuples inserted.
 				Tuple curTup = tupleGroup.get(0);
 				IntField temp = (IntField) curTup.getField(1);
+				//Incrementing the count by 1
 				curTup.setField(0, new IntField(temp.getValue()+1));
 			}
 		}
@@ -92,6 +98,7 @@ public class StringAggregator implements Aggregator {
 			if (current == null)
 			{
 				current = new Tuple(m_td);
+				//Initializing Count to 1
 				current.setField(0, tupGroup);
 				current.setField(1, new IntField(1));
 				tupleGroup.add(current);
@@ -99,6 +106,7 @@ public class StringAggregator implements Aggregator {
 			//There are already grouped tuples
 			else
 			{
+				//Incrementing the count
 				IntField temp1 = (IntField) current.getField(1);
 				current.setField(1, new IntField(temp1.getValue()+1));
 			}
