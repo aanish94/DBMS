@@ -9,6 +9,10 @@ import java.io.IOException;
 public class Delete extends Operator {
 
     private static final long serialVersionUID = 1L;
+    private TransactionId tid;
+    private DbIterator dbit;
+    private TupleDesc tupdesc;
+    private boolean  flag;
 
     /**
      * Constructor specifying the transaction that this delete belongs to as
@@ -19,25 +23,37 @@ public class Delete extends Operator {
      * @param child
      *            The child operator from which to read tuples for deletion
      */
-    public Delete(TransactionId t, DbIterator child) {
-        // some code goes here
+    public Delete(TransactionId t, DbIterator child)
+    {
+    tid = t;
+    dbit = child;
+    flag = false;
+    
+    Type[] type = new Type[]{Type.INT_TYPE};
+    String[] name = new String[]{"Del"};
+    tupdesc = new TupleDesc(type, name);
+    
     }
 
-    public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+    public TupleDesc getTupleDesc() 
+    {
+    	return tupdesc;
     }
 
-    public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+    public void open() throws DbException, TransactionAbortedException 
+    {
+    	dbit.open();
+    	super.open();
     }
 
-    public void close() {
-        // some code goes here
+    public void close() 
+    {
+    	dbit.close();
+    	super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+    	dbit.close();
     }
 
     /**
@@ -49,9 +65,29 @@ public class Delete extends Operator {
      * @see Database#getBufferPool
      * @see BufferPool#deleteTuple
      */
-    protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+    protected Tuple fetchNext() throws TransactionAbortedException, DbException 
+    {
+        if(flag)
+        	return null;
+        
+            int ctr = 0;
+            while(dbit.hasNext())
+            {
+              Tuple tup = dbit.next();
+              try {
+				Database.getBufferPool().deleteTuple(tid, tup);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+              ctr++;
+            }
+            
+            flag = true;
+            
+            Tuple t = new Tuple(tupdesc);
+            t.setField(0, new IntField(ctr));
+            return t;
     }
 
     @Override

@@ -1,8 +1,10 @@
 package simpledb;
 
 import java.io.*;
-
+import java.util.ArrayList;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -29,7 +31,6 @@ public class BufferPool {
 	//PRIVATE
 	private ConcurrentHashMap<PageId, Page> m_pages;
 	private int m_numPages;
-
 	//PRIVATE
 	/**
 	 * Creates a BufferPool that caches up to numPages pages.
@@ -68,17 +69,22 @@ public class BufferPool {
 	 */
 	public  Page getPage(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException, DbException 
 	{
-		Page page = m_pages.get(pid);
-		if (page != null)
-			return page;
-		else {
-			int m_tid = pid.getTableId();
-			DbFile m_f = Database.getCatalog().getDatabaseFile(m_tid);
-			Page add_Page = m_f.readPage(pid);
-			m_pages.put(pid, add_Page);
-			return add_Page;
-		}
+        Page page = m_pages.get(pid);
+        if (page != null)
+            return page;
+        else {
+        	
+        	if(m_numPages == m_pages.size())
+                evictPage();  
+        	int m_tid = pid.getTableId();
+        	DbFile m_f = Database.getCatalog().getDatabaseFile(m_tid);
+            Page add_Page = m_f.readPage(pid);
+            m_pages.put(pid, add_Page);
+            return add_Page;
+        }
 	}
+
+
 
 	/**
 	 * Releases the lock on a page.
@@ -140,8 +146,10 @@ public class BufferPool {
 	 */
 	public void insertTuple(TransactionId tid, int tableId, Tuple t)
 			throws DbException, IOException, TransactionAbortedException {
-		// some code goes here
-		// not necessary for lab1
+		HeapFile f = (HeapFile)Database.getCatalog().getDatabaseFile(tableId);
+		ArrayList<Page> p = f.insertTuple(tid, t);
+        Page p2 = p.get(0);
+        p2.markDirty(true, tid);
 	}
 
 	/**
@@ -157,9 +165,12 @@ public class BufferPool {
 	 * @param t the tuple to delete
 	 */
 	public  void deleteTuple(TransactionId tid, Tuple t)
-			throws DbException, IOException, TransactionAbortedException {
-		// some code goes here
-		// not necessary for lab1
+			throws DbException, IOException, TransactionAbortedException 
+			{
+	        HeapFile f = (HeapFile)Database.getCatalog().getDatabaseFile( t.getRecordId().getPageId().getTableId());
+	        ArrayList<Page> p = f.deleteTuple(tid, t);
+	        Page p2 = p.get(0);
+	        p2.markDirty(true, tid);
 	}
 
 	/**
@@ -167,9 +178,13 @@ public class BufferPool {
 	 * NB: Be careful using this routine -- it writes dirty data to disk so will
 	 *     break simpledb if running in NO STEAL mode.
 	 */
-	public synchronized void flushAllPages() throws IOException {
-		// some code goes here
-		// not necessary for lab1
+	public synchronized void flushAllPages() throws IOException 
+	{
+        Set<PageId> pids = m_pages.keySet();
+        for(PageId pid : pids)
+        {
+                flushPage(pid);
+        }
 
 	}
 
@@ -187,9 +202,14 @@ public class BufferPool {
 	 * Flushes a certain page to disk
 	 * @param pid an ID indicating the page to flush
 	 */
-	private synchronized  void flushPage(PageId pid) throws IOException {
-		// some code goes here
-		// not necessary for lab1
+	private synchronized  void flushPage(PageId pid) throws IOException 
+	{
+		// Object get(Object key) 
+		Page page = m_pages.get(pid);
+        if(page.isDirty() != null)
+        {
+                Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+        } 
 	}
 
 	/** Write all pages of the specified transaction to disk.
@@ -203,9 +223,24 @@ public class BufferPool {
 	 * Discards a page from the buffer pool.
 	 * Flushes the page to disk to ensure dirty pages are updated on disk.
 	 */
-	private synchronized  void evictPage() throws DbException {
-		// some code goes here
-		// not necessary for lab1
+	private synchronized  void evictPage() throws DbException 
+	{
+		Set<PageId> pids = m_pages.keySet();
+        for(PageId pid : pids)
+		{
+            Page evpage = m_pages.get(pid);
+            if(evpage.isDirty() == null)
+            {
+                try {
+                      this.flushPage(pid);
+                      m_pages.remove(pid);
+                      break;
+                      } catch (IOException e) {
+                    	  		System.out.println(e.getMessage());
+                                e.printStackTrace();}
+                
+            }
+        }
 	}
 
 }
