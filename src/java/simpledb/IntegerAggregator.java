@@ -136,7 +136,7 @@ public class IntegerAggregator implements Aggregator {
 		}
 		else if (m_op == Op.AVG)
 		{
-			//AVERAGE DETERMINATION
+			//AVERAGE DETERMINATION	
 			if (flag) //There is a comparison value
 			{
 				if (first) //This is the first value
