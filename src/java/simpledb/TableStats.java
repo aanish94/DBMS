@@ -3,6 +3,7 @@ package simpledb;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -65,7 +66,10 @@ public class TableStats {
      * histograms.
      */
     static final int NUM_HIST_BINS = 100;
-
+    
+    private int m_tableid; 
+    private int m_ioCostPerPage;
+    private DbFile m_file;
     /**
      * Create a new TableStats object, that keeps track of statistics on each
      * column of a table
@@ -85,6 +89,9 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+    	m_tableid = tableid;
+    	m_ioCostPerPage = ioCostPerPage;
+    	m_file = Database.getCatalog().getDatabaseFile(m_tableid);
     }
 
     /**
@@ -101,7 +108,8 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // some code goes here
-        return 0;
+    	HeapFile temp = (HeapFile) m_file;
+    	return temp.numPages() * m_ioCostPerPage;
     }
 
     /**
@@ -114,8 +122,26 @@ public class TableStats {
      *         selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
-        // some code goes here
-        return 0;
+        // some code goes here    	
+    	int count = 0;
+    	DbFileIterator it = m_file.iterator(new TransactionId());
+    	try {
+			while (it.hasNext())
+			{
+				count++;
+				it.next();
+			}
+		} catch (NoSuchElementException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (DbException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	return (int) (count * selectivityFactor);
     }
 
     /**
