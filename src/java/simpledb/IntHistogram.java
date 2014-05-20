@@ -4,13 +4,14 @@ package simpledb;
  */
 public class IntHistogram {
 
-	private int m_buckets;
+	private int[] m_histogram;
+	private int m_buckets; //Number of buckets
 	private int m_min;
 	private int m_max;
-	private int[] m_histogram;
-	private int m_range;
-	private int m_epsilon;
+	private int m_epsilon; //Number of "items" per bucket
 
+	private boolean OVER; //true => OVER number of buckets
+	private int OUT_OF_BOUNDS; // UNDER/OVER number of buckets
 	/**
 	 * Create a new IntHistogram.
 	 * 
@@ -28,82 +29,24 @@ public class IntHistogram {
 	 * @param max The maximum integer value that will ever be passed to this class for histogramming
 	 */
 	public IntHistogram(int buckets, int min, int max) {
-		// some code goes here
 		m_buckets = buckets;
 		m_min = min;
 		m_max = max;
-		m_histogram = new int[m_buckets]; //0 by default
-		m_range = m_max - m_min;
-		
-		//if (m_buckets > m_range)
-	//	{
-		//	m_buckets = m_range;
-			//m_epsilon = 1;
-		//}		
-		m_epsilon = (int) Math.ceil((double)m_range / (double)m_buckets); 
-		
-		//assert(m_epsilon > 0);
-		
-		int j = 0;
-		for (int i = m_min; i < m_max; i += m_epsilon)
-		{
-			m_histogram[j++] = 0;
-		}
-		//assert(j == m_buckets);
+		m_histogram = new int[m_buckets]; //Filled with 0 by default
+
+		OVER = false;
+
+		int range = m_max - m_min;	
+		m_epsilon = (int) Math.ceil((double)range / (double)m_buckets); 
 	}
-	//Determine which bucket to insert val into/read from
-	private int findBucket(int temp)
-	{
-		if (temp < m_min) return -1;
-		if (temp > m_max) return -2;
-		if ((temp == m_max) && (temp % m_epsilon == 0 )) temp --;
-		
-		int index =  (temp-m_min)/m_epsilon;
-		//assert(index < m_buckets);
-		return index;
-	}
+
 	/**
 	 * Add a value to the set of values that you are keeping a histogram of.
 	 * @param v Value to add to the histogram
 	 */
 	public void addValue(int v) {
-		// some code goes here
-		//assert(v<= m_max);
-		//assert(v>=m_min);
-	//	if (v >= m_max || v <= m_min) { return; } //Outside range
-		int index = findBucket(v);
-		int tempVal = m_histogram[index] + 1;
-		m_histogram[index] = tempVal;
-	}
-	
-
-	private int valueCount()	
-	{
-		int sum = 0;
-		for (int i = 0 ; i < m_histogram.length; i++)
-		{
-			sum += m_histogram[i];
-		}
-		return sum;
-	}
-	private int bucketCount(int index)
-	{
-		if (index == -1) return 0;
-		if (index == -2) return 0;
-		//assert(index < m_histogram.length);
-		return m_histogram[index];
-	}
-	private int checker(int temp)
-	{
-		if (temp == -1) return valueCount();
-		if (temp == -2) return 0;
-		
-		int sum = 0;
-		for (int j = temp + 1; j < m_histogram.length; j++)
-		{
-			sum+=m_histogram[j];
-		}
-		return sum;
+		int index = identifyBucket(v);
+		m_histogram[index] += 1;
 	}
 
 	/**
@@ -117,66 +60,42 @@ public class IntHistogram {
 	 * @return Predicted selectivity of this particular operator and value
 	 */
 	public double estimateSelectivity(Predicate.Op op, int v) {
-		double answer = 0;
-		// some code goes here
-		int bucketIndex = findBucket(v);
-		double totalValue = valueCount();
-		double valinBucket = bucketCount(bucketIndex);
-		
+
+		int bucketIndex = identifyBucket(v);
+		double totalValue = histogramTotal();
+		double valinBucket = valOfBucket(bucketIndex);
+
 		if (op == Predicate.Op.EQUALS)
 		{
-			answer = valinBucket/totalValue;
+			return valinBucket/totalValue;
 		}
 		else if (op == Predicate.Op.GREATER_THAN)
 		{
-			/*double answer = 0;
-			for (int i = v + 1; i < m_histogram.length ; i++ )
-			{
-				answer += m_histogram[i];
-			}*/
-			answer = checker(bucketIndex) / totalValue;
+			return allGreaterValues(bucketIndex) / totalValue;
 		}
 		else if (op == Predicate.Op.GREATER_THAN_OR_EQ)
 		{
-			answer = checker(bucketIndex) + valinBucket;
-			/*for (int i = v; i < m_histogram.length ; i++ )
-			{
-				answer += m_histogram[i];
-			}*/
-			answer = answer/totalValue;
+			double answer = allGreaterValues(bucketIndex) + valinBucket;
+			return answer/totalValue;
 		}
 		else if (op == Predicate.Op.LESS_THAN)
 		{
-			/*for (int i = v - 1; i > 0 ; i-- )
-			{
-				answer += m_histogram[i];
-			}*/
-			answer = totalValue - checker(bucketIndex) - valinBucket;
-			answer = answer / totalValue;
+			double answer = totalValue - allGreaterValues(bucketIndex) - valinBucket;
+			return answer / totalValue;
 		}
 		else if (op == Predicate.Op.LESS_THAN_OR_EQ)
 		{
-			
-			/*for (int i = v; i > 0 ; i-- )
-			{
-				answer += m_histogram[i];
-			}*/
-			 answer = totalValue - checker(bucketIndex);
-			answer = answer / totalValue;
-		}
-		else if (op == Predicate.Op.LIKE)
-		{
-			return 0;
+			double answer = totalValue - allGreaterValues(bucketIndex);
+			return answer / totalValue;
 		}
 		else if (op == Predicate.Op.NOT_EQUALS)
 		{
-			answer = (totalValue - valinBucket) / totalValue;
+			return (totalValue - valinBucket) / totalValue;
 		}
-		//assert(answer <=1);
-		return answer;
+		return 0;
 	}
 
-		
+
 	//************************NOT IMPLEMENTED FOR NOW************************
 	/**
 	 * @return
@@ -200,4 +119,73 @@ public class IntHistogram {
 		// some code goes here
 		return null;
 	}
+
+	//******************HELPER FUNCTIONS******************
+	/**
+	 * Determine which bucket corresponds to value
+	 * @param v Value to find in to the histogram
+	 * @return bucket corresponding to v
+	 */
+	private int identifyBucket(int value)
+	{
+		if (value < m_min) { OVER = false; return OUT_OF_BOUNDS; }
+		else if (value > m_max) { OVER = true; return OUT_OF_BOUNDS; }
+		else if (value == m_max) value --;
+
+		return (value - m_min) / m_epsilon;
+	}
+	
+	/**
+	 * Sums up all the values in the histogram
+	 * @return total Sum of all values
+	 */
+	private int histogramTotal()	
+	{
+		int total = 0;
+		for (int i = 0 ; i < m_histogram.length; i++)
+		{
+			total += m_histogram[i];
+		}
+		return total;
+	}
+	/**
+	 * GETTER used in TableStats.java
+	 * @return total Sum of all values in histogram
+	 */
+	public int statsHistogramTotal()
+	{
+		return histogramTotal();
+	}
+	/**
+	 * Determines value of specific bucket
+	 * @param index of bucket
+	 * @return bucket's value
+	 */
+	private int valOfBucket(int index)
+	{
+		if (index == OUT_OF_BOUNDS) return 0;
+		return m_histogram[index];
+	}
+
+	/**
+	 * Determines the total value of all buckets larger than current
+	 * @param index Bucket of histogram
+	 * @return sum of all buckets to the right of index
+	 */
+	private int allGreaterValues(int index)
+	{
+		if (index == OUT_OF_BOUNDS) 
+		{
+			if (!OVER) return histogramTotal();
+			else return 0;
+		}
+
+		int total = 0;
+		for (int j = index + 1; j < m_histogram.length; j++)
+		{
+			total+=m_histogram[j];
+		}
+		return total;
+	}
+	//****************************************************************
 }
