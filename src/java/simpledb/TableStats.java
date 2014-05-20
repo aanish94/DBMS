@@ -59,7 +59,7 @@ public class TableStats {
 		}
 		System.out.println("Done.");
 	}
-	
+
 	/**
 	 * Number of bins for the histogram.
 	 * Feel free to increase this value over 100,
@@ -103,63 +103,6 @@ public class TableStats {
 		} catch (Exception e) {}
 	}
 
-	private void determineHistoRange() throws NoSuchElementException, DbException, TransactionAbortedException {
-		m_allMax = new int[m_numFields];
-		m_allMin = new int[m_numFields];
-		
-		while (m_iter.hasNext()) {
-			Tuple tuple = m_iter.next();
-			for (int j = 0 ; j < m_numFields ; j++)
-			{
-				Field current = tuple.getField(j);
-				if (current.getType() == Type.INT_TYPE)
-				{
-					int val = ((IntField) current).getValue();
-					if (val < m_allMin[j]) m_allMin[j] = val;
-					if (val > m_allMax[j]) m_allMax[j] = val;
-				}
-			}
-		}
-	}
-
-	private void initializeHistograms() throws TransactionAbortedException, DbException {
-		m_histograms = new Object[m_numFields];
-		for (int i = 0 ; i < m_numFields ; i++ ) 
-		{
-			if (m_schema.getFieldType(i) == Type.INT_TYPE)
-			{
-				m_histograms[i] = new IntHistogram(NUM_HIST_BINS, m_allMin[i], m_allMax[i]);
-			}
-			if (m_schema.getFieldType(i) == Type.STRING_TYPE)
-			{
-				m_histograms[i] = new StringHistogram(NUM_HIST_BINS);
-			}
-		}
-		m_iter.rewind();
-		while (m_iter.hasNext())
-		{
-			Tuple next = m_iter.next();
-			createHistogram(next);
-		}
-	}
-
-	private void createHistogram(Tuple t)
-	{
-		for (int j = 0 ; j < m_numFields ; j++ )
-		{
-			Field cur = t.getField(j);
-			if (cur.getType() == Type.INT_TYPE)
-			{
-				int val = ((IntField) cur).getValue();
-				((IntHistogram) m_histograms[j]).addValue(val);
-			}
-			if (cur.getType() == Type.STRING_TYPE)
-			{
-				String val = ((StringField) cur).getValue();
-				((StringHistogram) m_histograms[j]).addValue(val);
-			}
-		}
-	}
 
 	/** 
 	 * Estimates the
@@ -193,39 +136,6 @@ public class TableStats {
 		return (int) Math.floor(selectivityFactor * summation);
 	}
 
-	/** 
-	 * Estimate the selectivity of predicate <tt>field op constant</tt> on the table.
-	 * 
-	 * @param field The field over which the predicate ranges
-	 * @param op The logical operation in the predicate
-	 * @param constant The value against which the field is compared
-	 * @return The estimated selectivity (fraction of tuples that satisfy) the predicate
-	 */
-	public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-		switch (constant.getType()) {
-		case INT_TYPE:
-		{
-			IntHistogram histogram = (IntHistogram) m_histograms[field];
-			assert (histogram != null);
-			int value = ((IntField) constant).getValue();
-			return histogram.estimateSelectivity(op, value);
-		}
-		case STRING_TYPE:
-		{
-			StringHistogram histogram = (StringHistogram) m_histograms[field];
-			assert (histogram != null);
-			String value = ((StringField) constant).getValue();
-			return histogram.estimateSelectivity(op, value);
-		}
-		default:
-			assert (false);
-			break;
-		}
-
-		assert (false);
-		return -1;
-	}
-
 	/**
 	 * The average selectivity of the field under op.
 	 * @param field
@@ -254,14 +164,111 @@ public class TableStats {
 	 * @return The estimated selectivity (fraction of tuples that satisfy) the
 	 *         predicate
 	 */
-
+	public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
+		if (constant.getType() == Type.INT_TYPE)
+		{
+			int val = ((IntField) constant).getValue();
+			return ((IntHistogram) m_histograms[field]).estimateSelectivity(op,val);
+		}
+		if (constant.getType() == Type.STRING_TYPE)
+		{
+			String val = ((StringField) constant).getValue();
+			return ((StringHistogram) m_histograms[field]).estimateSelectivity(op,val);
+		}
+		return 1.0;
+	}
 
 	/**
 	 * return the total number of tuples in this table
 	 * */
 	public int totalTuples() {
-		// some code goes here
-		return 0;
+		int numT = 0;
+		try {
+			m_iter.rewind();
+			while (m_iter.hasNext())
+			{
+				m_iter.next();
+				numT++;
+			}
+		} catch (Exception e) {}
+
+		return numT;
 	}
 
+	//*************************** HELPER FUNCTIONS *************************** 
+
+	/**
+	 * Determine the range (max & min) for each IntField in the table.
+	 * Fills m_allMax and m_allMin array's with these values
+	 * @return None
+	 */
+	private void determineHistoRange() throws NoSuchElementException, DbException, TransactionAbortedException {
+		m_allMax = new int[m_numFields];
+		m_allMin = new int[m_numFields];
+		while (m_iter.hasNext()) {
+			Tuple tuple = m_iter.next();
+			for (int j = 0 ; j < m_numFields ; j++)
+			{
+				Field current = tuple.getField(j);
+				if (current.getType() == Type.INT_TYPE)
+				{
+					int val = ((IntField) current).getValue();
+					if (val < m_allMin[j]) m_allMin[j] = val;
+					if (val > m_allMax[j]) m_allMax[j] = val;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Initialize a histogram for each Field in the table.
+	 * Fills m_histogram with either a IntHistogram or a StringHistogram
+	 * @return None
+	 */
+	private void initializeHistograms() throws TransactionAbortedException, DbException {
+		m_histograms = new Object[m_numFields];
+		for (int i = 0 ; i < m_numFields ; i++ ) 
+		{
+			if (m_schema.getFieldType(i) == Type.INT_TYPE)
+			{
+				m_histograms[i] = new IntHistogram(NUM_HIST_BINS, m_allMin[i], m_allMax[i]);
+			}
+			if (m_schema.getFieldType(i) == Type.STRING_TYPE)
+			{
+				m_histograms[i] = new StringHistogram(NUM_HIST_BINS);
+			}
+		}
+		m_iter.rewind();
+		while (m_iter.hasNext())
+		{
+			Tuple next = m_iter.next();
+			createHistogram(next);
+		}
+	}
+
+	/**
+	 * Creates a histogram for each Field in the table.
+	 * Uses m_allMax and m_allMin for the low and high for IntFields
+	 * Fills m_histogram[i] for all i with an appropriate histogram
+	 * @return None
+	 */
+	private void createHistogram(Tuple t)
+	{
+		for (int j = 0 ; j < m_numFields ; j++ )
+		{
+			Field cur = t.getField(j);
+			if (cur.getType() == Type.INT_TYPE)
+			{
+				int val = ((IntField) cur).getValue();
+				((IntHistogram) m_histograms[j]).addValue(val);
+			}
+			if (cur.getType() == Type.STRING_TYPE)
+			{
+				String val = ((StringField) cur).getValue();
+				((StringHistogram) m_histograms[j]).addValue(val);
+			}
+		}
+	}
+
+	//***************************
 }
