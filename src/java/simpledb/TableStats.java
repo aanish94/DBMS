@@ -67,9 +67,20 @@ public class TableStats {
      */
     static final int NUM_HIST_BINS = 100;
     
+    private class IntStats {
+		public int _low;
+		public int _high;
+	}
+    
     private int m_tableid; 
     private int m_ioCostPerPage;
     private DbFile m_file;
+    private Object[] m_histograms;
+    private IntStats[] m_range;
+    private TupleDesc m_schema;
+    private DbFileIterator m_iter;
+    private int m_numFields;
+    
     /**
      * Create a new TableStats object, that keeps track of statistics on each
      * column of a table
@@ -92,8 +103,75 @@ public class TableStats {
     	m_tableid = tableid;
     	m_ioCostPerPage = ioCostPerPage;
     	m_file = Database.getCatalog().getDatabaseFile(m_tableid);
+    	m_schema = m_file.getTupleDesc();
+    	m_numFields = m_schema.numFields();
+    	m_iter = m_file.iterator(new TransactionId());
+    	try {
+			m_iter.open();
+			determineRanges();
+			createHisto();
+			
+		} catch (Exception e) { } 
     }
-
+    
+    private void determineRanges()
+    {
+    	try {
+			m_iter.rewind();
+			while (m_iter.hasNext())
+			{
+				Tuple next = m_iter.next();
+				for (int i = 0 ; i < m_numFields ; i++)
+				{
+					Field cur = next.getField(i);
+					if (cur.getType() == Type.INT_TYPE)
+					{
+						IntField cur2 = (IntField) cur;
+						int value = cur2.getValue();
+						IntStats temp = m_range[i];
+						if (value < temp._low) temp._low = value;
+						if (value > temp._high) temp._high = value;
+					}
+				}
+			}
+		} catch (Exception e) {}
+    }
+    
+    private void createHisto() throws DbException, TransactionAbortedException
+    {
+    	m_histograms = new Object[m_numFields];
+    	for (int i = 0 ; i < m_numFields ; i++)
+    	{
+    		if (m_schema.getFieldType(i) == Type.INT_TYPE)
+    		{
+    			IntStats cur = m_range[i];
+    			m_histograms[i] = new IntHistogram(NUM_HIST_BINS, cur._low, cur._high);
+    		}
+    		if (m_schema.getFieldType(i) == Type.STRING_TYPE)
+    		{
+    			m_histograms[i] = new StringHistogram(NUM_HIST_BINS);
+    		}
+    	}
+    	m_iter.rewind();
+    	while (m_iter.hasNext())
+    	{
+    		Tuple cur = m_iter.next();	
+    		for (int i = 0 ; i < m_numFields; i++)
+    		{
+    			Field f = cur.getField(i);
+    			if (f.getType() == Type.INT_TYPE)
+    			{
+    				int value = ((IntField) f).getValue();
+    				((IntHistogram) m_histograms[i]).addValue(value);
+    			}
+    			if (f.getType() == Type.STRING_TYPE)
+    			{
+    				String value = ((StringField) f ).getValue();
+    				((StringHistogram) m_histograms[i]).addValue(value);
+    			}
+    		}
+    	}
+    }
     /**
      * Estimates the cost of sequentially scanning the file, given that the cost
      * to read a page is costPerPageIO. You can assume that there are no seeks
@@ -123,25 +201,13 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // some code goes here    	
-    	int count = 0;
-    	DbFileIterator it = m_file.iterator(new TransactionId());
-    	try {
-			while (it.hasNext())
-			{
-				count++;
-				it.next();
-			}
-		} catch (NoSuchElementException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (DbException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (TransactionAbortedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	return (int) (count * selectivityFactor);
+    	double count = 0;
+    	if (m_schema.getFieldType(0) == Type.INT_TYPE)
+    	{
+    		IntHistogram temp = (IntHistogram) m_histograms[0];
+    		count = temp.statsHistogramTotal();
+    	}
+    	return (int) Math.floor (count * selectivityFactor);
     }
 
     /**

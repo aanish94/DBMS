@@ -76,7 +76,10 @@ public class IntHistogram {
 		m_histogram[index] = tempVal;
 	}
 	
-
+	public double statsHistogramTotal()
+	{
+		return valueCount();
+	}
 	private int valueCount()	
 	{
 		int sum = 0;
