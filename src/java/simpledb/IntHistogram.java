@@ -9,9 +9,9 @@ public class IntHistogram {
 	private int m_min;
 	private int m_max;
 	private int m_epsilon; //Number of "items" per bucket
-
-	private boolean OVER; //true => OVER number of buckets
-	private int OUT_OF_BOUNDS; // UNDER/OVER number of buckets
+	
+	private int UNDER = -1;
+	private int OVER = -2;
 	/**
 	 * Create a new IntHistogram.
 	 * 
@@ -33,9 +33,7 @@ public class IntHistogram {
 		m_min = min;
 		m_max = max;
 		m_histogram = new int[m_buckets]; //Filled with 0 by default
-
-		OVER = false;
-
+		
 		int range = m_max - m_min;	
 		m_epsilon = (int) Math.ceil((double)range / (double)m_buckets);
 	}	
@@ -63,7 +61,7 @@ public class IntHistogram {
 
 		int bucketIndex = identifyBucket(v);
 		double totalValue = histogramTotal();
-		double valinBucket = valOfBucket(bucketIndex);
+		double valinBucket = bucketCount(bucketIndex);
 
 		if (op == Predicate.Op.EQUALS)
 		{
@@ -94,8 +92,6 @@ public class IntHistogram {
 		}
 		return 0;
 	}
-
-
 
 	//************************NOT IMPLEMENTED FOR NOW************************
 	/**
@@ -129,13 +125,13 @@ public class IntHistogram {
 	 */
 	private int identifyBucket(int value)
 	{
-		if (value < m_min) { OVER = false; return OUT_OF_BOUNDS; }
-		else if (value > m_max) { OVER = true; return OUT_OF_BOUNDS; }
-		else if (value == m_max) value --;
+		if (value < m_min) { return UNDER; }
+		else if (value > m_max) { return OVER; }
+		else if ((value == m_max) && (value % m_epsilon == 0)) value --;
 
 		return (value - m_min) / m_epsilon;
 	}
-	
+
 	/**
 	 * Sums up all the values in the histogram
 	 * @return total Sum of all values
@@ -150,21 +146,6 @@ public class IntHistogram {
 		return total;
 	}
 
-
-	/**
-	 * Determines value of specific bucket
-	 * @param index of bucket
-	 * @return bucket's value
-	 */
-	private double valOfBucket(int index)
-	{
-		if (OVER) return 0;
-		return m_histogram[index];
-	};
-	//*************************** HELPER FUNCTIONS *************************** 
-
-
-
 	/**
 	 * Public getter for histogramTotalSummation; Used in TableStats.Java
 	 * @return Total summation of values in histogram.
@@ -173,8 +154,7 @@ public class IntHistogram {
 	{
 		return histogramTotal();
 	}
-	
-	
+
 	/**
 	 * Gets the value of the bucket associated with index
 	 * @param index of bucket
@@ -182,7 +162,7 @@ public class IntHistogram {
 	 */
 	private int bucketCount(int index)
 	{
-		if (index == OUT_OF_BOUNDS) return 0;
+		if (index == UNDER || index == OVER) return 0;
 		return m_histogram[index];
 	}
 
@@ -193,16 +173,12 @@ public class IntHistogram {
 	 */
 	private int allGreaterValues(int index)
 	{
-		if (index == OUT_OF_BOUNDS) 
-		{
-			if (!OVER) return histogramTotal();
-			else return 0;
-		}
-
+		if (index == UNDER) return histogramTotal();
+		if (index == OVER) return 0;
 		int total = 0;
 		for (int j = index + 1; j < m_histogram.length; j++)
 		{
-			total+=m_histogram[j];
+			total += m_histogram[j];
 		}
 		return total;
 	}

@@ -177,7 +177,7 @@ public class TableStats {
 			String val = ((StringField) constant).getValue();
 			return ((StringHistogram) m_histograms[field]).estimateSelectivity(op,val);
 		}
-		return 1.0;
+		return -1.0;
 	}
 
 	/**
