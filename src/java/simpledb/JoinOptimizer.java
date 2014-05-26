@@ -154,9 +154,24 @@ public class JoinOptimizer {
             String field2PureName, int card1, int card2, boolean t1pkey,
             boolean t2pkey, Map<String, TableStats> stats,
             Map<String, Integer> tableAliasToId) {
-        int card = 1;
-        // some code goes here
-        return card <= 0 ? 1 : card;
+        // int card = 1;
+        
+        double fixedFraction = 0.3;
+        if (joinOp == Predicate.Op.EQUALS || joinOp == Predicate.Op.NOT_EQUALS)
+        {
+        	// For equality joins, when one of the attributes is a primary key, 
+        	// the number of tuples produced by the join cannot be larger than 
+        	// the cardinality of the non-primary key attribute.
+        	if (t1pkey)
+        	{
+        		if (t2pkey) return Math.min(card1, card2);
+        		else return card2;
+        	}
+        	else if (t2pkey) return card1;
+        	else return Math.max(card1, card2); // simple heuristic
+        }
+        else return (int) (card1 * card2 * fixedFraction);  
+       // return card <= 0 ? 1 : card;
     }
 
     /**
